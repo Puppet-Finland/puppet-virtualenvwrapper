@@ -35,4 +35,25 @@ define virtualenvwrapper::env
     environment => ["HOME=${home}"],
     creates     => "${home}/.virtualenvs/${virtualenv}",
   }
+
+  $hook_defaults = {
+    'ensure' => 'present',
+    'owner'  => $user,
+    'group'  => $user,
+    'mode'   => '0600',
+  }
+
+  if $postactivate_content {
+    file { "${home}/.virtualenvs/${virtualenv}/bin/postactivate":
+      content => $postactivate_content,
+      *       => $hook_defaults,
+    }
+  }
+
+  if $postdeactivate_content {
+    file { "${home}/.virtualenvs/${virtualenv}/bin/postdeactivate":
+      content => $postdeactivate_content,
+      *       => $hook_defaults,
+    }
+  }
 }
