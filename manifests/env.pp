@@ -6,6 +6,8 @@
 #   System username to create virtualenv for
 # @param shell
 #   Path to shell to use
+# @env_variables
+#   A hash of environment variables to set in the virtualenv
 # @postactivate_content
 #   Content of the postactivate hook
 # @postdeactivate_content
@@ -15,12 +17,17 @@
 #   virtualenvwrapper::env { 'namevar': }
 define virtualenvwrapper::env
 (
-  String           $user,
-  String           $shell = '/bin/bash',
-  Optional[String] $postactivate_content = undef,
-  Optional[String] $postdeactivate_content = undef,
+  String                        $user,
+  String                        $shell = '/bin/bash',
+  Optional[Hash[String,String]] $env_variables = undef,
+  Optional[String]              $postactivate_content = undef,
+  Optional[String]              $postdeactivate_content = undef,
 )
 {
+
+  if ($env_variables) and (($postactivate_content) or ($postdeactivate_content)) {
+    fail('ERROR: you cannot use env_variables and postactivate_content/postdeactivate_content parameters at the same time!')
+  }
 
   $virtualenv = $title
 
@@ -36,22 +43,51 @@ define virtualenvwrapper::env
     creates     => "${home}/.virtualenvs/${virtualenv}",
   }
 
+  $activate = "${home}/.virtualenvs/${virtualenv}/bin/postactivate"
+  $deactivate = "${home}/.virtualenvs/${virtualenv}/bin/postdeactivate"
+
   $hook_defaults = {
-    'ensure' => 'present',
-    'owner'  => $user,
-    'group'  => $user,
-    'mode'   => '0600',
+    'ensure'  => 'present',
+    'owner'   => $user,
+    'group'   => $user,
+    'mode'    => '0600',
+    'require' => Exec[$virtualenv],
+  }
+
+  if $env_variables {
+    file { $activate:
+      * => $hook_defaults,
+    }
+
+    file { $deactivate:
+      * => $hook_defaults,
+    }
+
+    $env_variables.each |$var| {
+      file_line { "${title}-export-${var}":
+        path    => $activate,
+        line    => "export ${var[0]}=${var[1]}",
+        match   => "^export\ ${var[0]}\=",
+        require => File[$activate],
+      }
+      file_line { "${title}-unset-${var}":
+        path    => $deactivate,
+        line    => "unset ${var[0]}",
+        match   => "^unset\ ${var[0]}",
+        require => File[$deactivate],
+      }
+    }
   }
 
   if $postactivate_content {
-    file { "${home}/.virtualenvs/${virtualenv}/bin/postactivate":
+    file { $activate:
       content => $postactivate_content,
       *       => $hook_defaults,
     }
   }
 
   if $postdeactivate_content {
-    file { "${home}/.virtualenvs/${virtualenv}/bin/postdeactivate":
+    file { $deactivate:
       content => $postdeactivate_content,
       *       => $hook_defaults,
     }
