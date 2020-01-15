@@ -4,6 +4,8 @@
 #
 # @param user
 #   System username to create virtualenv for
+# @param python_path
+#   Absolute path to the Python binary to use. Defaults to 2.x version of Python.
 # @param shell
 #   Path to shell to use
 # @env_variables
@@ -19,6 +21,7 @@ define virtualenvwrapper::env
 (
   String                        $user,
   String                        $shell = '/bin/bash',
+  Optional[String]              $python_path = undef,
   Optional[Hash[String,String]] $env_variables = undef,
   Optional[String]              $postactivate_content = undef,
   Optional[String]              $postdeactivate_content = undef,
@@ -36,11 +39,17 @@ define virtualenvwrapper::env
     default => "/home/${user}"
   }
 
+  $python_opt = $python_path ? {
+    undef   => '',
+    default => "--python=${python_path}",
+  }
+
   exec { $virtualenv:
-    command     => "${shell} -c \'. /usr/share/virtualenvwrapper/virtualenvwrapper.sh; mkvirtualenv ${virtualenv}\'",
+    command     => "${shell} -c \'. /usr/share/virtualenvwrapper/virtualenvwrapper.sh; mkvirtualenv ${python_opt} ${virtualenv}\'",
     user        => $user,
     environment => ["HOME=${home}"],
     creates     => "${home}/.virtualenvs/${virtualenv}",
+    require     => Package['virtualenvwrapper'],
   }
 
   $activate = "${home}/.virtualenvs/${virtualenv}/bin/postactivate"
