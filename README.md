@@ -25,11 +25,28 @@ Each virtualenv should set these properly and unset them when you deactivate it.
 
 ## Usage
 
-Using this module is straightforward:
+Using this module is straightforward. To install virtualenvwrapper with pip3:
 
     include ::virtualenvwrapper
+
+To create a virtualenv without any postactivate/postdeactivate hooks:
     
     ::virtualenvwrapper::env { 'myenv':
       user                 => 'joe',
-      postactivate_content => template('profile/myenv_postactivate.erb'),
+    }
+
+To use template-based hooks:
+
+    ::virtualenvwrapper::env { 'myenv':
+      user                   => 'joe',
+      postactivate_content   => template('profile/myenv_postactivate.erb'),
+      postdeactivate_content => template('profile/myenv_postdeactivate.erVb'),
+
+To have postactivate export and postdeactivate unset environment variables of
+your choice:
+
+    ::virtualenvwrapper::env { 'myenv':
+      user          => 'joe',
+      env_variables => { 'foo' => 'bar',
+                         'faz' => 'goo', },
     }
